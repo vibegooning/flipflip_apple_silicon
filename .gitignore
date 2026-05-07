@@ -1,9 +1,11 @@
 node_modules/
+.DS_Store
 dist/
 app/
 release/
 overlays/
 FlipFlip-darwin-x64/
+FlipFlip-darwin-arm64/
 FlipFlip-win32-x64/
 FlipFlip-win32-ia32/
 FlipFlip-linux-x64/

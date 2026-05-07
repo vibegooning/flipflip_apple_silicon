@@ -35,6 +35,8 @@ export function createNewWindow() {
     webPreferences: {
       nodeIntegration: true,
       nodeIntegrationInWorker: true,
+      contextIsolation: false,
+      enableRemoteModule: true,
     }
   });
 

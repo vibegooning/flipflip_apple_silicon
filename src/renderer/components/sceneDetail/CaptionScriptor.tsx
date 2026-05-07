@@ -864,7 +864,7 @@ class CaptionScriptor extends React.Component {
 
   onConfirmOpen() {
     this.onCloseDialog();
-    let result = remote.dialog.showOpenDialog(remote.getCurrentWindow(),
+    let result = remote.dialog.showOpenDialogSync(remote.getCurrentWindow(),
       {
         filters: [{name: 'All Files (*.*)', extensions: ['*']}, {name: 'Text Document', extensions: ['txt']}],
         properties: ['openFile']
@@ -921,20 +921,19 @@ class CaptionScriptor extends React.Component {
 
   onSaveAs() {
     this.onCloseDialog();
-    remote.dialog.showSaveDialog(remote.getCurrentWindow(),
-      {filters: [{name: 'Text Document', extensions: ['txt']}], defaultPath: this.state.captionScript.url}, (filePath) => {
-        if (filePath != null) {
-          fs.writeFileSync(filePath, this.state.captionScript.script);
-          const setURL = (script: CaptionScript) => {
-            script.url = filePath;
-            return script;
-          }
-          this.setState({captionScript: setURL(this.state.captionScript), scriptChanged: false});
-          return true;
-        } else {
-          return false;
-        }
-      });
+    const filePath = remote.dialog.showSaveDialogSync(remote.getCurrentWindow(),
+      {filters: [{name: 'Text Document', extensions: ['txt']}], defaultPath: this.state.captionScript.url});
+    if (filePath != null) {
+      fs.writeFileSync(filePath, this.state.captionScript.script);
+      const setURL = (script: CaptionScript) => {
+        script.url = filePath;
+        return script;
+      }
+      this.setState({captionScript: setURL(this.state.captionScript), scriptChanged: false});
+      return true;
+    } else {
+      return false;
+    }
   }
 
     onSaveToLibrary() {

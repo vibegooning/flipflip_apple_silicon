@@ -1600,7 +1600,7 @@ class ScenePicker extends React.Component {
   }
 
   onOpenImportFile() {
-    const filePath = remote.dialog.showOpenDialog(remote.getCurrentWindow(),
+    const filePath = remote.dialog.showOpenDialogSync(remote.getCurrentWindow(),
       {filters: [{name:'All Files (*.*)', extensions: ['*']},{name: 'JSON Document', extensions: ['json']}], properties: ['openFile']});
     if (!filePath || !filePath.length) return;
     this.setState({importFile: filePath[0]});

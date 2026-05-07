@@ -6,9 +6,14 @@ let mainConfig = {
     mode: 'production',
     entry: './src/main/main.ts',
     target: 'electron-main',
+    optimization: {
+        concatenateModules: false,
+        minimize: false,
+    },
     output: {
         filename: 'main.bundle.js',
         path: __dirname + '/dist',
+        hashFunction: 'sha256',
     },
     node: {
         __dirname: false,
@@ -50,9 +55,14 @@ let rendererConfig = {
     mode: 'production',
     entry: './src/renderer/renderer.tsx',
     target: 'electron-renderer',
+    optimization: {
+        concatenateModules: false,
+        minimize: false,
+    },
     output: {
         filename: 'renderer.bundle.js',
         path: __dirname + '/dist',
+        hashFunction: 'sha256',
     },
     node: {
         __dirname: false,

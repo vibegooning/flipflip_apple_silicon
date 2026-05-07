@@ -1260,7 +1260,7 @@ class AudioLibrary extends React.Component {
       case AF.audios:
         let aResult = new Array<string>();
         if (e.shiftKey) {
-          let adResult = remote.dialog.showOpenDialog(remote.getCurrentWindow(),
+          let adResult = remote.dialog.showOpenDialogSync(remote.getCurrentWindow(),
             {filters: [{name:'All Files (*.*)', extensions: ['*']}], properties: ['openDirectory', 'multiSelections']});
           if (!adResult) return;
           for (let path of adResult) {
@@ -1271,7 +1271,7 @@ class AudioLibrary extends React.Component {
             }
           }
         } else {
-          aResult = remote.dialog.showOpenDialog(remote.getCurrentWindow(),
+          aResult = remote.dialog.showOpenDialogSync(remote.getCurrentWindow(),
             {filters: [{name: 'All Files (*.*)', extensions: ['*']}, {name: 'Audio files', extensions: ['mp3', 'm4a', 'wav', 'ogg']}], properties: ['openFile', 'multiSelections']});
           if (!aResult) return;
         }

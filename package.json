@@ -9,7 +9,9 @@
     "start": "electron ./dist/main.bundle.js",
     "development": "rimraf dist && webpack --watch --config ./webpack.dev.js --progress --colors",
     "build": "rimraf dist && webpack --config ./webpack.dev.js --progress --colors",
-    "production": "rimraf dist && webpack --config ./webpack.prod.js --progress --colors"
+    "production": "rimraf dist && webpack --config ./webpack.prod.js --progress --colors",
+    "package:mac-arm64": "make app-mac-arm64",
+    "package:mac-x64": "make app-mac-x64"
   },
   "devDependencies": {
     "@babel/core": "^7.18.10",
@@ -18,8 +20,8 @@
     "@types/react-sound": "^1.2.3",
     "css-loader": "^3.5.1",
     "domino-ext": "^2.1.4",
-    "electron": "4.2.12",
-    "electron-packager": "^15.2.0",
+    "electron": "13.6.9",
+    "electron-packager": "^17.1.2",
     "file-loader": "^6.0.0",
     "html-webpack-plugin": "^4.0.4",
     "moment": "^2.29.4",

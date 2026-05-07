@@ -195,7 +195,7 @@ class AudioEdit extends React.Component {
   }
 
   loadThumb() {
-    let iResult = remote.dialog.showOpenDialog(remote.getCurrentWindow(),
+    let iResult = remote.dialog.showOpenDialogSync(remote.getCurrentWindow(),
       {filters: [{name:'All Files (*.*)', extensions: ['*']}, {name: 'Image files', extensions: ["gif", "png", "jpeg", "jpg", "webp", "tiff", "svg"]}], properties: ['openFile']});
     if (!iResult) return;
     iResult = iResult.filter((i) => isImage(i, true));

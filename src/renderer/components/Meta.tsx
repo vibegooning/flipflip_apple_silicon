@@ -1,4 +1,4 @@
-import {remote, ipcRenderer, IpcMessageEvent} from 'electron';
+import {remote, ipcRenderer, IpcRendererEvent} from 'electron';
 import * as React from 'react';
 
 import {
@@ -124,7 +124,7 @@ export default class Meta extends React.Component {
     }
   }
 
-  startScene(ev: IpcMessageEvent, sceneName: string) {
+  startScene(ev: IpcRendererEvent, sceneName: string) {
     this.applyAction(actions.startFromScene, sceneName);
   }
 

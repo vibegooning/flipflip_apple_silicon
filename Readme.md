@@ -11,9 +11,44 @@
 
 ![Screenshot](./docs/doc_images/flipflip_home.png)
 
+## Apple Silicon macOS Build
+
+This fork packages FlipFlip for Apple Silicon Macs (`darwin-arm64`). The original upstream macOS release was Intel-only.
+
+### Get the app
+
+If this repo has a GitHub Release, download:
+
+* `FlipFlip-Mac-Apple-Silicon.zip`
+
+Unzip it, then open `FlipFlip.app`. If macOS blocks it because it is not notarized, control-click the app, choose **Open**, then choose **Open** again.
+
+### Build it yourself
+
+Requirements:
+
+* macOS on Apple Silicon
+* Node.js
+* Yarn Classic (`1.x`)
+* Xcode Command Line Tools (`xcode-select --install`)
+
+Build the Apple Silicon app:
+
+```sh
+git clone https://github.com/vibegooning/flipflip_apple_silicon.git
+cd flipflip_apple_silicon
+yarn install
+yarn package:mac-arm64
+```
+
+The built app will be created at:
+
+* `FlipFlip-darwin-arm64/FlipFlip.app`
+* `release/FlipFlip-Mac-Apple-Silicon.zip`
+
 ## Links
 
-* **[Download Latest Release (Mac/Windows/Linux)](https://github.com/ififfy/flipflip/releases/latest)**
+* **[Original FlipFlip releases (Intel Mac/Windows/Linux)](https://github.com/ififfy/flipflip/releases/latest)**
 * **[User manual](https://ififfy.github.io/flipflip/)**
 * **[Subreddit](https://www.reddit.com/r/flipflip/)**
 

@@ -22,6 +22,7 @@ import Scene from '../../data/Scene';
 import Audio from "../../data/Audio";
 import ChildCallbackHack from './ChildCallbackHack';
 import ImagePlayer from './ImagePlayer';
+import GridMediaCoordinator from "./GridMediaCoordinator";
 
 let workerInstance: any = null;
 let workerListener: any = null;
@@ -448,6 +449,7 @@ export default class SourceScraper extends React.Component {
     setVideo(video: HTMLVideoElement): void,
     setCount(sourceURL: string, count: number, countComplete: boolean): void,
     cache(i: HTMLImageElement | HTMLVideoElement): void,
+    mediaCoordinator?: GridMediaCoordinator,
     systemMessage(message: string): void,
     onEndScene?(): void,
     setTimeToNextFrame?(timeToNextFrame: number): void,
@@ -510,6 +512,7 @@ export default class SourceScraper extends React.Component {
             onLoaded={this.props.firstImageLoaded.bind(this)}
             setVideo={this.props.setVideo}
             cache={this.props.cache}
+            mediaCoordinator={this.props.mediaCoordinator}
             onEndScene={this.props.onEndScene}
             playNextScene={this.props.playNextScene}
             gridCoordinates={this.props.gridCoordinates}

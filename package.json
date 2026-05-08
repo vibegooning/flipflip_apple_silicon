@@ -11,6 +11,7 @@
     "build": "rimraf dist && webpack --config ./webpack.dev.js --progress --colors",
     "production": "rimraf dist && webpack --config ./webpack.prod.js --progress --colors",
     "package:mac-arm64": "make app-mac-arm64",
+    "package:mac-arm64-dmg": "make dmg-mac-arm64",
     "package:mac-x64": "make app-mac-x64"
   },
   "devDependencies": {

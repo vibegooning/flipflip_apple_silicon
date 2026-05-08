@@ -17,7 +17,7 @@ import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import {SGT} from "../../data/const";
 import Scene from "../../data/Scene";
 import SceneSelect from "../configGroups/SceneSelect";
-import SceneGrid from "../../data/SceneGrid";
+import SceneGrid, {gridLinePercentages, gridTemplateFromWeights, resizeGridWeights} from "../../data/SceneGrid";
 import SceneGridCell from "../../data/SceneGridCell";
 
 const styles = (theme: Theme) => createStyles({
@@ -77,6 +77,10 @@ const styles = (theme: Theme) => createStyles({
     height: '100%',
     padding: theme.spacing(0),
   },
+  gridWrapper: {
+    height: '100%',
+    position: 'relative',
+  },
   dimensionInput: {
     color: `${theme.palette.primary.contrastText} !important`,
     minWidth: theme.spacing(6),
@@ -85,6 +89,30 @@ const styles = (theme: Theme) => createStyles({
     flexGrow: 1,
     display: 'grid',
     height: '100%',
+  },
+  columnResizeHandle: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 12,
+    marginLeft: -6,
+    zIndex: 2,
+    cursor: 'col-resize',
+    '&:hover': {
+      backgroundColor: 'rgba(255,255,255,0.18)',
+    },
+  },
+  rowResizeHandle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 12,
+    marginTop: -6,
+    zIndex: 2,
+    cursor: 'row-resize',
+    '&:hover': {
+      backgroundColor: 'rgba(255,255,255,0.18)',
+    },
   },
   gridCell: {
     height: '100%',
@@ -151,9 +179,14 @@ class GridSetup extends React.Component {
     width: this.props.scene.grid && this.props.scene.grid.length > 0 &&
     this.props.scene.grid[0].length > 0 ? this.props.scene.grid[0].length : 1,
     dragging: false,
+    rowWeights: resizeGridWeights(this.props.scene.rowWeights, this.props.scene.grid ? this.props.scene.grid.length : 1),
+    columnWeights: resizeGridWeights(this.props.scene.columnWeights, this.props.scene.grid && this.props.scene.grid.length > 0 ? this.props.scene.grid[0].length : 1),
   };
 
   readonly nameInputRef: React.RefObject<HTMLInputElement> = React.createRef();
+  readonly gridRef: React.RefObject<HTMLDivElement> = React.createRef();
+  _resizeDrag: {type: string, index: number, start: number, size: number, weights: Array<number>} = null;
+  _pendingResizeWeights: Array<number> = null;
 
   _colors = ["#FF0000",
     "#FFA500",
@@ -171,16 +204,10 @@ class GridSetup extends React.Component {
   render() {
     const classes = this.props.classes;
 
-    const colSize = 100 / this.state.width;
-    const rowSize = 100 / this.state.height;
-    let gridTemplateColumns = "";
-    let gridTemplateRows = "";
-    for (let w = 0; w < this.state.width; w++) {
-      gridTemplateColumns += colSize.toString() + "% ";
-    }
-    for (let h = 0; h < this.state.height; h++) {
-      gridTemplateRows += rowSize.toString() + "% ";
-    }
+    const columnWeights = resizeGridWeights(this.state.columnWeights, this.state.width);
+    const rowWeights = resizeGridWeights(this.state.rowWeights, this.state.height);
+    const gridTemplateColumns = gridTemplateFromWeights(columnWeights);
+    const gridTemplateRows = gridTemplateFromWeights(rowWeights);
 
     let count = 0;
     let colors = Array<Array<string>>();
@@ -294,11 +321,12 @@ class GridSetup extends React.Component {
         <main className={classes.content}>
           <div className={classes.appBarSpacer} />
           <Container maxWidth={false} className={classes.container}>
-            <div className={classes.grid}
-                 style={{gridTemplateColumns: gridTemplateColumns, gridTemplateRows: gridTemplateRows}}>
-              {this.props.scene.grid.map((row, rowIndex) =>
-                <React.Fragment key={rowIndex}>
-                  {row.map((cell, colIndex) => {
+            <div className={classes.gridWrapper} ref={this.gridRef}>
+              <div className={classes.grid}
+                   style={{gridTemplateColumns: gridTemplateColumns, gridTemplateRows: gridTemplateRows}}>
+                {this.props.scene.grid.map((row, rowIndex) =>
+                  <React.Fragment key={rowIndex}>
+                    {row.map((cell, colIndex) => {
                     let scene = this.props.allScenes.find((s) => s.id == cell.sceneID);
                     let sceneCopy = null;
                     if (cell.sceneCopy && cell.sceneCopy.length > 0) {
@@ -329,9 +357,26 @@ class GridSetup extends React.Component {
                         </Button>
                       </Draggable>
                     );
-                  })}
-                </React.Fragment>
-              )}
+                    })}
+                  </React.Fragment>
+                )}
+              </div>
+              {gridLinePercentages(columnWeights).map((left, index) => (
+                <div
+                  key={"column-" + index}
+                  className={classes.columnResizeHandle}
+                  style={{left: left + "%"}}
+                  onMouseDown={this.startColumnResize.bind(this, index)}
+                />
+              ))}
+              {gridLinePercentages(rowWeights).map((top, index) => (
+                <div
+                  key={"row-" + index}
+                  className={classes.rowResizeHandle}
+                  style={{top: top + "%"}}
+                  onMouseDown={this.startRowResize.bind(this, index)}
+                />
+              ))}
             </div>
             <Menu
               id="scene-menu"
@@ -410,6 +455,11 @@ class GridSetup extends React.Component {
     }
   }
 
+  componentWillUnmount() {
+    window.removeEventListener("mousemove", this.onResizeMove);
+    window.removeEventListener("mouseup", this.onResizeStop);
+  }
+
   onChooseScene(sceneID: number) {
     const row = this.state.isEditing[0];
     const col = this.state.isEditing[1];
@@ -471,14 +521,26 @@ class GridSetup extends React.Component {
 
   onUpdateHeight(height: number) {
     const grid = this.getNewGrid(height, this.state.width);
-    this.changeKey('grid', grid);
-    this.setState({height: height});
+    const rowWeights = resizeGridWeights(this.state.rowWeights, height);
+    const columnWeights = resizeGridWeights(this.state.columnWeights, this.state.width);
+    this.update((s) => {
+      s.grid = grid;
+      s.rowWeights = rowWeights;
+      s.columnWeights = columnWeights;
+    });
+    this.setState({height: height, rowWeights, columnWeights});
   }
 
   onUpdateWidth(width: number) {
     const grid = this.getNewGrid(this.state.height, width);
-    this.changeKey('grid', grid);
-    this.setState({width: width});
+    const rowWeights = resizeGridWeights(this.state.rowWeights, this.state.height);
+    const columnWeights = resizeGridWeights(this.state.columnWeights, width);
+    this.update((s) => {
+      s.grid = grid;
+      s.rowWeights = rowWeights;
+      s.columnWeights = columnWeights;
+    });
+    this.setState({width: width, rowWeights, columnWeights});
   }
 
   onHeightInput(e: MouseEvent) {
@@ -517,6 +579,73 @@ class GridSetup extends React.Component {
     } else if (max && this.state.width > max) {
       this.onUpdateWidth(max);
     }
+  }
+
+  startColumnResize(index: number, e: MouseEvent) {
+    this.startResize("column", index, e);
+  }
+
+  startRowResize(index: number, e: MouseEvent) {
+    this.startResize("row", index, e);
+  }
+
+  startResize(type: string, index: number, e: MouseEvent) {
+    if (!this.gridRef.current) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rect = this.gridRef.current.getBoundingClientRect();
+    this._resizeDrag = {
+      type,
+      index,
+      start: type == "column" ? e.clientX : e.clientY,
+      size: type == "column" ? rect.width : rect.height,
+      weights: type == "column" ? Array.from(this.state.columnWeights) : Array.from(this.state.rowWeights),
+    };
+    this._pendingResizeWeights = this._resizeDrag.weights;
+
+    window.addEventListener("mousemove", this.onResizeMove);
+    window.addEventListener("mouseup", this.onResizeStop);
+  }
+
+  onResizeMove = (e: MouseEvent) => {
+    if (!this._resizeDrag || this._resizeDrag.size <= 0) return;
+
+    const current = this._resizeDrag.type == "column" ? e.clientX : e.clientY;
+    const delta = ((current - this._resizeDrag.start) / this._resizeDrag.size) *
+      this._resizeDrag.weights.reduce((sum, weight) => sum + weight, 0);
+    const weights = Array.from(this._resizeDrag.weights);
+    const index = this._resizeDrag.index;
+    const combinedWeight = weights[index] + weights[index + 1];
+    const minWeight = Math.min(0.15, combinedWeight / 2);
+    const firstWeight = Math.max(minWeight, Math.min(combinedWeight - minWeight, weights[index] + delta));
+
+    weights[index] = firstWeight;
+    weights[index + 1] = combinedWeight - firstWeight;
+    this._pendingResizeWeights = weights;
+
+    if (this._resizeDrag.type == "column") {
+      this.setState({columnWeights: weights});
+    } else {
+      this.setState({rowWeights: weights});
+    }
+  }
+
+  onResizeStop = () => {
+    if (!this._resizeDrag) return;
+
+    const weights = this._pendingResizeWeights;
+    if (this._resizeDrag.type == "column") {
+      this.changeKey("columnWeights", weights);
+    } else {
+      this.changeKey("rowWeights", weights);
+    }
+
+    this._resizeDrag = null;
+    this._pendingResizeWeights = null;
+    window.removeEventListener("mousemove", this.onResizeMove);
+    window.removeEventListener("mouseup", this.onResizeStop);
   }
 
   onDrag() {

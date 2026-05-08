@@ -1,4 +1,4 @@
-.PHONY: app app-mac app-mac-arm64 app-mac-x64 prepare-app
+.PHONY: app app-mac app-mac-arm64 app-mac-x64 dmg-mac-arm64 prepare-app
 
 PACKAGER := ./node_modules/.bin/electron-packager
 YARN ?= yarn
@@ -39,6 +39,9 @@ app-mac: prepare-app
 app-mac-arm64: prepare-app
 	$(PACKAGER) $(APP_DIR) FlipFlip --platform=darwin --arch=arm64 --icon="$(MAC_ICON)" --overwrite
 	zip -r $(RELEASE_DIR)/FlipFlip-Mac-Apple-Silicon.zip FlipFlip-darwin-arm64
+
+dmg-mac-arm64: app-mac-arm64
+	hdiutil create -volname FlipFlip -srcfolder FlipFlip-darwin-arm64/FlipFlip.app -ov -format UDZO $(RELEASE_DIR)/FlipFlip-Mac-Apple-Silicon.dmg
 
 app-mac-x64: prepare-app
 	$(PACKAGER) $(APP_DIR) FlipFlip --platform=darwin --arch=x64 --icon="$(MAC_ICON)" --overwrite

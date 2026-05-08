@@ -12,7 +12,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 
 import {createMainMenu, createMenuTemplate} from "../../../main/MainMenu";
-import SceneGrid from "../../data/SceneGrid";
+import SceneGrid, {gridTemplateFromWeights, resizeGridWeights} from "../../data/SceneGrid";
 import Config from "../../data/Config";
 import Scene from "../../data/Scene";
 import Tag from "../../data/Tag";
@@ -20,6 +20,7 @@ import Player from "./Player";
 import ChildCallbackHack from "./ChildCallbackHack";
 import {IdleTimer} from "./IdleTimer";
 import {flatten} from "../../data/utils";
+import GridMediaCoordinator from "./GridMediaCoordinator";
 
 const styles = (theme: Theme) => createStyles({
   root: {
@@ -132,20 +133,16 @@ class GridPlayer extends React.Component {
 
   readonly idleTimerRef: React.RefObject<HTMLDivElement> = React.createRef();
   _appBarTimeout: any = null;
+  _mediaCoordinator = new GridMediaCoordinator(this.props.config.displaySettings.maxInHistory);
 
   render() {
     const classes = this.props.classes;
 
-    const colSize = 100 / this.state.width;
-    const rowSize = 100 / this.state.height;
-    let gridTemplateColumns = "";
-    let gridTemplateRows = "";
-    for (let w = 0; w < this.state.width; w++) {
-      gridTemplateColumns += colSize.toString() + "% ";
-    }
-    for (let h = 0; h < this.state.height; h++) {
-      gridTemplateRows += rowSize.toString() + "% ";
-    }
+    const columnWeights = resizeGridWeights(this.state.scene.columnWeights, this.state.width);
+    const rowWeights = resizeGridWeights(this.state.scene.rowWeights, this.state.height);
+    const gridTemplateColumns = gridTemplateFromWeights(columnWeights);
+    const gridTemplateRows = gridTemplateFromWeights(rowWeights);
+    const cellConfig = this.getCellConfig();
 
     return (
       <div className={classes.root}>
@@ -271,7 +268,7 @@ class GridPlayer extends React.Component {
                             <Player
                               preventSleep={rowIndex == 0 && colIndex == 0}
                               advanceHack={this.props.advanceHacks ? this.props.advanceHacks[(rowIndex * row.length) + colIndex] : undefined}
-                              config={this.props.config}
+                              config={cellConfig}
                               hasStarted={this.props.hasStarted}
                               scene={scene}
                               nextScene={this.nextScene.bind(this, rowIndex, colIndex)}
@@ -284,6 +281,7 @@ class GridPlayer extends React.Component {
                               captionScale={1 / Math.sqrt(row.length * this.props.scene.grid.length)}
                               allLoaded={allLoaded}
                               cache={this.props.cache.bind(this)}
+                              mediaCoordinator={this._mediaCoordinator}
                               getTags={this.props.getTags.bind(this)}
                               goBack={this.props.goBack.bind(this)}
                               onGenerate={this.props.onGenerate}
@@ -325,7 +323,24 @@ class GridPlayer extends React.Component {
     } else {
       newGrid.grid[rowIndex][colIndex].sceneID = scene.nextSceneID;
     }
-    this.setState({grid: newGrid});
+    this.setState({scene: newGrid});
+  }
+
+  getCellConfig(): Config {
+    const cellCount = Math.max(1, this.state.width * this.state.height);
+    const config = {...this.props.config} as Config;
+    const displaySettings = {...this.props.config.displaySettings};
+    const divideSetting = (value: number, min: number) => {
+      if (value <= 0) return value;
+      return Math.max(min, Math.ceil(value / cellCount));
+    };
+
+    displaySettings.maxLoadingAtOnce = divideSetting(this.props.config.displaySettings.maxLoadingAtOnce, 1);
+    displaySettings.maxInMemory = divideSetting(this.props.config.displaySettings.maxInMemory, 2);
+    displaySettings.maxInHistory = divideSetting(this.props.config.displaySettings.maxInHistory, 5);
+    config.displaySettings = displaySettings;
+
+    return config;
   }
 
   onActive() {

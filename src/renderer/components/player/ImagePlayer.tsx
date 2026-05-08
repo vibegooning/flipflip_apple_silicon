@@ -16,6 +16,7 @@ import ChildCallbackHack from './ChildCallbackHack';
 import ImageView from './ImageView';
 import Strobe from "./Strobe";
 import Audio from "../../data/Audio";
+import GridMediaCoordinator from "./GridMediaCoordinator";
 
 class GifInfo {
   animated: boolean;
@@ -45,6 +46,7 @@ export default class ImagePlayer extends React.Component {
     onLoaded(): void,
     setVideo(video: HTMLVideoElement): void,
     cache(i: HTMLImageElement | HTMLVideoElement): void,
+    mediaCoordinator?: GridMediaCoordinator,
     onEndScene?(): void,
     setSceneCopy?(children: React.ReactNode): void,
     setTimeToNextFrame?(timeToNextFrame: number): void,
@@ -208,6 +210,8 @@ export default class ImagePlayer extends React.Component {
     for (let timeout of this._imgLoadTimeouts) {
       clearTimeout(timeout);
     }
+    this.cleanupMediaElements(this.state.readyToDisplay);
+    this.cleanupMediaElements(this.state.historyPaths);
     this._backForth = null;
     this._timeout = null;
     this._waitTimeouts = null;
@@ -227,6 +231,39 @@ export default class ImagePlayer extends React.Component {
     if (this.props.deleteHack) {
       this.props.deleteHack.listener = null;
     }
+  }
+
+  cleanupMediaElements(elements: Array<HTMLImageElement | HTMLVideoElement | HTMLIFrameElement>) {
+    if (!elements) return;
+
+    for (let element of elements) {
+      this.cleanupMediaElement(element);
+    }
+  }
+
+  cleanupMediaElement(element: HTMLImageElement | HTMLVideoElement | HTMLIFrameElement) {
+    if (!element) return;
+
+    if (element instanceof HTMLVideoElement) {
+      try {
+        element.pause();
+      } catch (e) {
+        console.error(e);
+      }
+      element.muted = true;
+      element.volume = 0;
+      element.onplay = null;
+      element.onended = null;
+      element.onerror = null;
+      element.onabort = null;
+      element.removeAttribute("src");
+      try {
+        element.load();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    element.remove();
   }
 
   shouldComponentUpdate(props: any, state: any): boolean {
@@ -366,6 +403,13 @@ export default class ImagePlayer extends React.Component {
     this._runFetchLoopCallRequests.push(i);
   }
 
+  chooseURL(collection: Array<string>): string {
+    if (this.props.mediaCoordinator) {
+      return this.props.mediaCoordinator.chooseURL(collection);
+    }
+    return getRandomListItem(collection);
+  }
+
   runFetchLoop(i: number) {
     if (!this._isMounted) return;
 
@@ -378,6 +422,7 @@ export default class ImagePlayer extends React.Component {
     let source: string;
     let collection: string[];
     let url: string;
+    let rawURL: string;
     let urlIndex: number;
     let sourceIndex: number = null;
     let sourceLength: number;
@@ -477,7 +522,7 @@ export default class ImagePlayer extends React.Component {
 
       // If sorting randomly, get a random URL
       if (this.props.scene.orderFunction == OF.random) {
-        url = getRandomListItem(collection);
+        url = this.chooseURL(collection);
       } else { // Else get the next index for this source
         let index = this._nextSourceIndex.get(source);
         if (!index) {
@@ -521,7 +566,7 @@ export default class ImagePlayer extends React.Component {
 
       // If sorting randomly, get a random URL
       if (this.props.scene.orderFunction == OF.random) {
-        url = getRandomListItem(collection);
+        url = this.chooseURL(collection);
       } else { // Else get the next index
         url = collection[++this._nextIndex%collection.length];
         if (this.props.scene.orderFunction == OF.strict) {
@@ -534,6 +579,7 @@ export default class ImagePlayer extends React.Component {
       source = this.props.allURLs.get(url)[0];
     }
 
+    rawURL = url;
     let post = this.props.allPosts.has(url) ? this.props.allPosts.get(url) : null;
 
     if (this.props.scene.orderFunction == OF.random && (this.props.scene.forceAll || (this.props.scene.weightFunction == WF.sources && this.props.scene.fullSource))) {
@@ -556,6 +602,7 @@ export default class ImagePlayer extends React.Component {
     if (fileType == ST.nimja) {
       let iframe = document.createElement('iframe');
       iframe.setAttribute("source", source);
+      iframe.setAttribute("rawURL", rawURL);
       if (!!post) {
         iframe.setAttribute("post", post);
       }
@@ -594,6 +641,7 @@ export default class ImagePlayer extends React.Component {
     } else if (isVideo(url, false)) {
       let video = document.createElement('video');
       video.setAttribute("source", source);
+      video.setAttribute("rawURL", rawURL);
       if (!!post) {
         video.setAttribute("post", post);
       }
@@ -727,6 +775,9 @@ export default class ImagePlayer extends React.Component {
         if (this._imgLoadTimeouts) {
           clearTimeout(this._imgLoadTimeouts[i]);
         }
+        if (this.props.mediaCoordinator) {
+          this.props.mediaCoordinator.release(rawURL);
+        }
         if (!this._isMounted) return;
         if (this.props.scene.downloadScene || (this.props.scene.nextSceneAllImages && this.props.scene.nextSceneID != 0 && this.props.playNextScene && video && video.src)) {
           if (!this._playedURLs.includes(video.src)) {
@@ -758,7 +809,10 @@ export default class ImagePlayer extends React.Component {
         this.queueRunFetchLoop(i);
       };
 
-      video.onloadeddata = () => {
+      let videoReady = false;
+      const onVideoReady = () => {
+        if (videoReady) return;
+        videoReady = true;
         // images may load immediately, but that messes up the setState()
         // lifecycle, so always load on the next event loop iteration.
         // Also, now  we know the image size, so we can finally filter it.
@@ -770,6 +824,8 @@ export default class ImagePlayer extends React.Component {
           successCallback();
         }
       };
+      video.onloadedmetadata = onVideoReady;
+      video.onloadeddata = onVideoReady;
 
       video.onerror = video.onabort = () => {
         errorCallback();
@@ -786,7 +842,7 @@ export default class ImagePlayer extends React.Component {
 
       video.src = url;
       video.volume = 0;
-      video.preload = "auto";
+      video.preload = this.props.gridView ? "metadata" : "auto";
 
       clearTimeout(this._imgLoadTimeouts[i]);
       this._imgLoadTimeouts[i] = setTimeout(errorCallback, 15000);
@@ -795,6 +851,7 @@ export default class ImagePlayer extends React.Component {
     } else {
       const img = new Image();
       img.setAttribute("source", source);
+      img.setAttribute("rawURL", rawURL);
       if (!!post) {
         img.setAttribute("post", post);
       }
@@ -851,6 +908,9 @@ export default class ImagePlayer extends React.Component {
       const errorCallback = () => {
         if (this._imgLoadTimeouts) {
           clearTimeout(this._imgLoadTimeouts[i]);
+        }
+        if (this.props.mediaCoordinator) {
+          this.props.mediaCoordinator.release(rawURL);
         }
         if (!this._isMounted) return;
         if (this.props.scene.downloadScene || (this.props.scene.nextSceneAllImages && this.props.scene.nextSceneID != 0 && this.props.playNextScene && img && img.src)) {
@@ -1040,10 +1100,13 @@ export default class ImagePlayer extends React.Component {
           }
         }
         nextHistoryPaths = nextHistoryPaths.concat([nextImg]);
+        if (this.props.mediaCoordinator) {
+          this.props.mediaCoordinator.remember(nextImg.getAttribute("rawURL") || nextImg.src);
+        }
       }
 
       while (nextHistoryPaths.length > this.props.config.displaySettings.maxInHistory) {
-        nextHistoryPaths.shift().remove();
+        this.cleanupMediaElement(nextHistoryPaths.shift());
       }
 
       if (nextImg != null && (this.props.scene.downloadScene || (this.props.scene.nextSceneAllImages && this.props.scene.nextSceneID != 0 && this.props.playNextScene && nextImg && nextImg.src))) {

@@ -15,24 +15,35 @@
 
 This fork packages FlipFlip for Apple Silicon Macs (`darwin-arm64`). The original upstream macOS release was Intel-only.
 
+This fork also includes grid-player improvements aimed at large mixed image/video scene grids:
+
+* Scene Grid rows and columns can be resized by dragging the grid dividers in the grid setup screen.
+* Scene Grid cells share a media coordinator, reducing duplicate/recently played files across cells in the same grid window.
+* Scene Grid media loading uses a shared memory/loading budget so a 2x3 grid does not multiply the original queue sizes by six.
+* Queued videos in grid cells preload metadata first, and old video elements are paused, muted, and unloaded more aggressively.
+* Blur video backgrounds are still supported; video blur redraws are throttled to video frame callbacks when possible.
+
 ### Get the app
 
 If this repo has a GitHub Release, download:
 
+* `FlipFlip-Mac-Apple-Silicon.dmg`
 * `FlipFlip-Mac-Apple-Silicon.zip`
 
-Unzip it, then open `FlipFlip.app`. If macOS blocks it because it is not notarized, control-click the app, choose **Open**, then choose **Open** again.
+Open the DMG and drag `FlipFlip.app` to Applications, or unzip the ZIP and open `FlipFlip.app` directly.
+
+This local fork build is unsigned and not notarized. If macOS blocks it, control-click `FlipFlip.app`, choose **Open**, then choose **Open** again.
 
 ### Build it yourself
 
 Requirements:
 
 * macOS on Apple Silicon
-* Node.js
+* Node.js 16 or newer
 * Yarn Classic (`1.x`)
 * Xcode Command Line Tools (`xcode-select --install`)
 
-Build the Apple Silicon app:
+Build the Apple Silicon app and ZIP:
 
 ```sh
 git clone https://github.com/vibegooning/flipflip_apple_silicon.git
@@ -41,10 +52,25 @@ yarn install
 yarn package:mac-arm64
 ```
 
+Build the Apple Silicon app, ZIP, and DMG:
+
+```sh
+yarn package:mac-arm64-dmg
+```
+
 The built app will be created at:
 
 * `FlipFlip-darwin-arm64/FlipFlip.app`
 * `release/FlipFlip-Mac-Apple-Silicon.zip`
+* `release/FlipFlip-Mac-Apple-Silicon.dmg`
+
+Run from source during development:
+
+```sh
+yarn install
+yarn production
+yarn start
+```
 
 ## Links
 

@@ -42,9 +42,12 @@ export default class ImageView extends React.Component {
   _image: HTMLImageElement | HTMLVideoElement | HTMLIFrameElement = null;
   _scale: number = null;
   _timeouts: Array<Timeout>;
+  _frameCallbacks: Array<{video: any, handle: number}>;
+  _generation = 0;
 
   componentDidMount() {
     this._timeouts = new Array<Timeout>();
+    this._frameCallbacks = new Array<{video: any, handle: number}>();
     this._applyImage();
   }
 
@@ -68,13 +71,96 @@ export default class ImageView extends React.Component {
   }
 
   componentWillUnmount() {
+    this._generation++;
     this.clearTimeouts();
+    this.cleanupContainer(this.contentRef.current, true);
+    this.cleanupContainer(this.backgroundRef.current, true);
     this._timeouts = null;
+    this._frameCallbacks = null;
   }
 
   clearTimeouts() {
+    if (!this._timeouts) return;
     for (let timeout of this._timeouts) {
       clearTimeout(timeout);
+    }
+    this._timeouts = new Array<Timeout>();
+    if (this._frameCallbacks) {
+      for (let callback of this._frameCallbacks) {
+        if (callback.video?.cancelVideoFrameCallback) {
+          callback.video.cancelVideoFrameCallback(callback.handle);
+        }
+      }
+      this._frameCallbacks = new Array<{video: any, handle: number}>();
+    }
+  }
+
+  cleanupContainer(container: Element, unload: boolean) {
+    if (!container) return;
+
+    for (let child of Array.from(container.children)) {
+      this.cleanupNode(child, unload);
+    }
+  }
+
+  cleanupNode(node: Element, unload: boolean) {
+    if (node instanceof HTMLVideoElement) {
+      this.stopVideo(node, unload);
+    }
+    if (node instanceof HTMLElement) {
+      for (let video of Array.from(node.getElementsByTagName("video"))) {
+        this.stopVideo(video, unload);
+      }
+    }
+  }
+
+  removeFirstChild(container: Element, unload: boolean) {
+    if (!container || !container.hasChildNodes()) return;
+
+    const child = container.children.item(0);
+    if (child) {
+      this.cleanupNode(child, unload);
+      container.removeChild(child);
+    }
+  }
+
+  stopVideo(video: HTMLVideoElement, unload: boolean) {
+    try {
+      video.pause();
+    } catch (e) {
+      console.error(e);
+    }
+    video.muted = true;
+    video.volume = 0;
+    video.onplay = null;
+
+    if (unload) {
+      video.onended = null;
+      video.onerror = null;
+      video.onabort = null;
+      video.removeAttribute("src");
+      try {
+        video.load();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  scheduleVideoFrame(video: any, fn: () => void, generation: number) {
+    if (this._timeouts == null || generation != this._generation) return;
+
+    if (video.requestVideoFrameCallback && !video.paused && !video.ended) {
+      const callback = {video, handle: null as number};
+      callback.handle = video.requestVideoFrameCallback(() => {
+        if (this._frameCallbacks) {
+          this._frameCallbacks = this._frameCallbacks.filter((c) => c !== callback);
+        }
+        fn();
+      });
+      this._frameCallbacks.push(callback);
+    } else {
+      this._timeouts.push(setTimeout(fn, 33));
     }
   }
 
@@ -88,6 +174,12 @@ export default class ImageView extends React.Component {
     if (!forceBG && firstChild && firstChild.src == img.src &&
       firstChild.getAttribute("start") == img.getAttribute("start") &&
       firstChild.getAttribute("end") == img.getAttribute("end")) return;
+
+    if (!forceBG) {
+      this._generation++;
+      this.clearTimeouts();
+    }
+    const generation = this._generation;
 
     if (!forceBG && img instanceof HTMLVideoElement && img.hasAttribute("subtitles")) {
       try {
@@ -114,9 +206,11 @@ export default class ImageView extends React.Component {
     }
 
     const videoLoop = (v: any) => {
-      if (!el || !el.parentElement || parseFloat(el.parentElement.style.opacity) == 0.99 || v.paused || this._timeouts == null) return;
+      if (generation != this._generation || !el || !el.parentElement || parseFloat(el.parentElement.style.opacity) == 0.99 || v.paused || this._timeouts == null) return;
       if (v.ended) {
-        v.onended(null);
+        if (v.onended) {
+          v.onended(null);
+        }
         return;
       }
       let crossFadeAudio = !this.props.pictureGrid && this.props.scene.crossFadeAudio;
@@ -128,7 +222,9 @@ export default class ImageView extends React.Component {
         const start = v.getAttribute("start");
         const end = v.getAttribute("end");
         if (v.currentTime > end) {
-          v.onended(null);
+          if (v.onended) {
+            v.onended(null);
+          }
           v.currentTime = start;
         }
       }
@@ -136,27 +232,27 @@ export default class ImageView extends React.Component {
     };
 
     const drawLoop = (v: any, c: CanvasRenderingContext2D, w: number, h: number) => {
-      if (!el || !el.parentElement || parseFloat(el.parentElement.style.opacity) == 0.99 || this._timeouts == null) return;
+      if (generation != this._generation || !el || !el.parentElement || parseFloat(el.parentElement.style.opacity) == 0.99 || this._timeouts == null) return;
       c.drawImage(v, 0, 0, w, h);
-      this._timeouts.push(setTimeout(drawLoop, 20, v, c, w, h));
+      this.scheduleVideoFrame(v, () => drawLoop(v, c, w, h), generation);
     };
 
     const extraDrawLoop = (v: any, w: number, h: number) => {
-      if (!el || !el.parentElement || parseFloat(el.parentElement.style.opacity) == 0.99 || v.ended || v.paused || this._timeouts == null) return;
+      if (generation != this._generation || !el || !el.parentElement || parseFloat(el.parentElement.style.opacity) == 0.99 || v.ended || v.paused || this._timeouts == null) return;
       for (let canvas of document.getElementsByClassName("canvas-" + this.props.gridCoordinates[0] + "-" + this.props.gridCoordinates[1])) {
         const context = (canvas as HTMLCanvasElement).getContext('2d');
         context.drawImage(v, 0, 0, w, h);
       }
-      this._timeouts.push(setTimeout(extraDrawLoop, 20, v, w, h));
+      this.scheduleVideoFrame(v, () => extraDrawLoop(v, w, h), generation);
     };
 
     const extraBGDrawLoop = (v: any, w: number, h: number) => {
-      if (!el || !el.parentElement || parseFloat(el.parentElement.style.opacity) == 0.99 || this._timeouts == null) return;
+      if (generation != this._generation || !el || !el.parentElement || parseFloat(el.parentElement.style.opacity) == 0.99 || this._timeouts == null) return;
       for (let canvas of document.getElementsByClassName("canvas-bg-" + this.props.gridCoordinates[0] + "-" + this.props.gridCoordinates[1])) {
         const context = (canvas as HTMLCanvasElement).getContext('2d');
         context.drawImage(v, 0, 0, w, h);
       }
-      this._timeouts.push(setTimeout(extraBGDrawLoop, 20, v, w, h));
+      this.scheduleVideoFrame(v, () => extraBGDrawLoop(v, w, h), generation);
     };
 
     let parentWidth = el.offsetWidth;
@@ -466,7 +562,7 @@ export default class ImageView extends React.Component {
 
       const  appendOriginal = () => {
         if (this.props.removeChild && el.hasChildNodes()) {
-          el.removeChild(el.children.item(0));
+          this.removeFirstChild(el, false);
         }
         if (img instanceof HTMLVideoElement && this.props.pictureGrid && img.paused) {
           img.play();
@@ -490,12 +586,13 @@ export default class ImageView extends React.Component {
             appendOriginal();
           } else {
             if (this.props.removeChild && element.hasChildNodes() && el.hasChildNodes()) {
-              element.removeChild(element.children.item(0));
+              this.removeFirstChild(element, true);
             }
             if (img instanceof HTMLVideoElement) {
               if (this.props.config?.displaySettings.cloneGridVideoElements) {
                 const clone = img.cloneNode() as HTMLVideoElement;
-                clone.volume = img.volume;
+                clone.muted = true;
+                clone.volume = 0;
                 clone.currentTime = img.currentTime;
                 for (let attr of img.getAttributeNames()) {
                   clone.setAttribute(attr, img.getAttribute(attr));
@@ -525,7 +622,7 @@ export default class ImageView extends React.Component {
     if (blur) {
       const appendOriginalBG = () => {
         if (this.props.removeChild && bg.hasChildNodes()) {
-          bg.removeChild(bg.children.item(0));
+          this.removeFirstChild(bg, true);
         }
         bg.appendChild(bgImg);
       }
@@ -535,7 +632,7 @@ export default class ImageView extends React.Component {
             appendOriginalBG();
           } else {
             if (this.props.removeChild && element.hasChildNodes() && bg.hasChildNodes()) {
-              element.removeChild(element.children.item(0));
+              this.removeFirstChild(element, true);
             }
             if (img instanceof HTMLVideoElement || bgImg instanceof HTMLCanvasElement) {
               const canvas = document.createElement("canvas");
@@ -813,12 +910,13 @@ export default class ImageView extends React.Component {
             appendOriginal();
           } else {
             if (this.props.removeChild && element.hasChildNodes() && el.hasChildNodes()) {
-              element.removeChild(element.children.item(0));
+              this.removeFirstChild(element, true);
             }
             if (img instanceof HTMLVideoElement) {
               if (this.props.config?.displaySettings.cloneGridVideoElements) {
                 const clone = img.cloneNode() as HTMLVideoElement;
-                clone.volume = img.volume;
+                clone.muted = true;
+                clone.volume = 0;
                 clone.currentTime = img.currentTime;
                 for (let attr of img.getAttributeNames()) {
                   clone.setAttribute(attr, img.getAttribute(attr));

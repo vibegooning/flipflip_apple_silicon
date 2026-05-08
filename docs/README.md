@@ -2,13 +2,35 @@
 
 <img src="doc_images/flipflip_home.png" alt="FlipFlip" class="col-xs-10 col-xl-7">
 
-## [Releases](https://github.com/ififfy/flipflip/releases)
-#### [Latest Release](https://github.com/ififfy/flipflip/releases/latest)
+## Apple Silicon Fork
+
+This fork packages FlipFlip for Apple Silicon Macs (`darwin-arm64`) and adds Scene Grid improvements for mixed image/video grids.
+
+### Download
+
+If this fork has a GitHub Release, download `FlipFlip-Mac-Apple-Silicon.dmg` or `FlipFlip-Mac-Apple-Silicon.zip`.
+The app is unsigned, so macOS may require control-clicking `FlipFlip.app`, choosing **Open**, then choosing **Open** again.
+
+### Build
+
+```sh
+yarn install
+yarn package:mac-arm64-dmg
+```
+
+Build output:
+
+* `FlipFlip-darwin-arm64/FlipFlip.app`
+* `release/FlipFlip-Mac-Apple-Silicon.zip`
+* `release/FlipFlip-Mac-Apple-Silicon.dmg`
+
+## [Original Releases](https://github.com/ififfy/flipflip/releases)
+#### [Original Latest Release](https://github.com/ififfy/flipflip/releases/latest)
 
 ## Features
 * Local files as well as Tumblr, ~~Reddit~~, ~~Twitter~~, Instagram, Imgur, DeviantArt, Booru & More
 * Animated GIF and video support
-* Grid view with cloneable grid cells
+* Grid view with cloneable and draggable-size grid cells
 * Multiple windows
 * Visual effects (zoom/transition, cross-fade, slide, strobe/pulse, fade in/out, panning, overlay)
 * Randomized and ordered playback

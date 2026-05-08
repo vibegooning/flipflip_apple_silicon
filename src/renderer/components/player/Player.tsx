@@ -1,4 +1,4 @@
-import {remote, webFrame} from 'electron';
+import {remote} from 'electron';
 const {getCurrentWindow} = remote;
 import * as React from 'react';
 import {IdleTimer} from "./IdleTimer";
@@ -21,6 +21,7 @@ import AudioAlert from "./AudioAlert";
 import CaptionProgramPlaylist from "./CaptionProgramPlaylist";
 import ChildCallbackHack from './ChildCallbackHack';
 import GridPlayer from "./GridPlayer";
+import GridMediaCoordinator from "./GridMediaCoordinator";
 import ImageView from "./ImageView";
 import PictureGrid from "./PictureGrid";
 import PlayerBars from "./PlayerBars";
@@ -66,6 +67,7 @@ export default class Player extends React.Component {
     setProgress?(total: number, current: number, message: string[]): void,
     setSceneCopy?(children: React.ReactNode): void,
     setVideo?(video: HTMLVideoElement): void,
+    mediaCoordinator?: GridMediaCoordinator,
     onGenerate?(scene: Scene | SceneGrid, children?: boolean): void,
   };
 
@@ -450,6 +452,7 @@ export default class Player extends React.Component {
               setVideo={this.props.setVideo ? this.props.setVideo : this.setMainVideo.bind(this)}
               setCount={this.props.setCount.bind(this)}
               cache={this.props.cache.bind(this)}
+              mediaCoordinator={this.props.mediaCoordinator}
               onEndScene={this.props.goBack.bind(this)}
               setTimeToNextFrame={this.setTimeToNextFrame.bind(this)}
               systemMessage={this.props.systemMessage.bind(this)}
@@ -506,6 +509,7 @@ export default class Player extends React.Component {
                     setVideo={this.props.setVideo && !this.props.gridView ? this.props.setVideo : this.setOverlayVideo.bind(this, index)}
                     setCount={this.props.setCount.bind(this)}
                     cache={this.props.cache.bind(this)}
+                    mediaCoordinator={this.props.mediaCoordinator}
                     systemMessage={this.props.systemMessage.bind(this)}
                   />
                 );
@@ -704,10 +708,6 @@ export default class Player extends React.Component {
     this._interval = null;
     getCurrentWindow().setAlwaysOnTop(false);
     getCurrentWindow().setFullScreen(false);
-    // Clear ALL the available browser caches
-    global.gc();
-    webFrame.clearCache();
-    remote.getCurrentWindow().webContents.session.clearCache();
     if (this.props.preventSleep || this._powerSaveID != null) {
       remote.powerSaveBlocker.stop(this._powerSaveID);
       this._powerSaveID = null;

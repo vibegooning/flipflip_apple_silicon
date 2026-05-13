@@ -1,7 +1,8 @@
-.PHONY: app app-mac app-mac-arm64 app-mac-x64 dmg-mac-arm64 prepare-app
+.PHONY: app app-mac app-mac-arm64 app-mac-x64 dmg-mac-arm64 prepare-app sign-mac-arm64 sign-mac-x64
 
 PACKAGER := ./node_modules/.bin/electron-packager
 YARN ?= yarn
+CODESIGN_IDENTITY ?= -
 APP_DIR := app
 RELEASE_DIR := release
 MAC_ICON := src/renderer/icons/flipflip_logo.icns
@@ -19,6 +20,8 @@ prepare-app:
 app: prepare-app
 	$(PACKAGER) $(APP_DIR) FlipFlip --platform=darwin --arch=arm64 --icon="$(MAC_ICON)" --overwrite
 	$(PACKAGER) $(APP_DIR) FlipFlip --platform=darwin --arch=x64 --icon="$(MAC_ICON)" --overwrite
+	$(MAKE) sign-mac-arm64
+	$(MAKE) sign-mac-x64
 	$(PACKAGER) $(APP_DIR) FlipFlip --platform=win32 --arch=x64 --icon="$(WIN_ICON)" --overwrite
 	$(PACKAGER) $(APP_DIR) FlipFlip --platform=win32 --arch=ia32 --icon="$(WIN_ICON)" --overwrite
 	$(PACKAGER) $(APP_DIR) FlipFlip --platform=linux --arch=x64 --icon="$(LINUX_ICON)" --overwrite
@@ -33,11 +36,14 @@ app: prepare-app
 app-mac: prepare-app
 	$(PACKAGER) $(APP_DIR) FlipFlip --platform=darwin --arch=arm64 --icon="$(MAC_ICON)" --overwrite
 	$(PACKAGER) $(APP_DIR) FlipFlip --platform=darwin --arch=x64 --icon="$(MAC_ICON)" --overwrite
+	$(MAKE) sign-mac-arm64
+	$(MAKE) sign-mac-x64
 	zip -r $(RELEASE_DIR)/FlipFlip-Mac-Apple-Silicon.zip FlipFlip-darwin-arm64
 	zip -r $(RELEASE_DIR)/FlipFlip-Mac-Intel.zip FlipFlip-darwin-x64
 
 app-mac-arm64: prepare-app
 	$(PACKAGER) $(APP_DIR) FlipFlip --platform=darwin --arch=arm64 --icon="$(MAC_ICON)" --overwrite
+	$(MAKE) sign-mac-arm64
 	zip -r $(RELEASE_DIR)/FlipFlip-Mac-Apple-Silicon.zip FlipFlip-darwin-arm64
 
 dmg-mac-arm64: app-mac-arm64
@@ -45,4 +51,13 @@ dmg-mac-arm64: app-mac-arm64
 
 app-mac-x64: prepare-app
 	$(PACKAGER) $(APP_DIR) FlipFlip --platform=darwin --arch=x64 --icon="$(MAC_ICON)" --overwrite
+	$(MAKE) sign-mac-x64
 	zip -r $(RELEASE_DIR)/FlipFlip-Mac-Intel.zip FlipFlip-darwin-x64
+
+sign-mac-arm64:
+	xattr -cr FlipFlip-darwin-arm64/FlipFlip.app
+	codesign --force --deep --sign "$(CODESIGN_IDENTITY)" --timestamp=none FlipFlip-darwin-arm64/FlipFlip.app
+
+sign-mac-x64:
+	xattr -cr FlipFlip-darwin-x64/FlipFlip.app
+	codesign --force --deep --sign "$(CODESIGN_IDENTITY)" --timestamp=none FlipFlip-darwin-x64/FlipFlip.app

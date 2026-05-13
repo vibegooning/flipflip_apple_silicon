@@ -9,7 +9,7 @@ This fork packages FlipFlip for Apple Silicon Macs (`darwin-arm64`) and adds Sce
 ### Download
 
 If this fork has a GitHub Release, download `FlipFlip-Mac-Apple-Silicon.dmg` or `FlipFlip-Mac-Apple-Silicon.zip`.
-The app is unsigned, so macOS may require control-clicking `FlipFlip.app`, choosing **Open**, then choosing **Open** again.
+The app is ad-hoc signed but not Apple-notarized, so macOS may require control-clicking `FlipFlip.app`, choosing **Open**, then choosing **Open** again.
 
 ### Build
 

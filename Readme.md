@@ -32,7 +32,7 @@ If this repo has a GitHub Release, download:
 
 Open the DMG and drag `FlipFlip.app` to Applications, or unzip the ZIP and open `FlipFlip.app` directly.
 
-This local fork build is unsigned and not notarized. If macOS blocks it, control-click `FlipFlip.app`, choose **Open**, then choose **Open** again.
+This local fork build is ad-hoc signed but not Apple-notarized. If macOS blocks it, control-click `FlipFlip.app`, choose **Open**, then choose **Open** again.
 
 ### Build it yourself
 
